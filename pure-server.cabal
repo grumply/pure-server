@@ -1,0 +1,29 @@
+name:                pure-server
+version:             0.7.0.0
+synopsis:            
+homepage:            github.com/grumply/pure-server
+license:             BSD3
+license-file:        LICENSE
+author:              Sean Mackenzie
+maintainer:          sean@grump.ly
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.10
+
+Flag secure
+     Description: enable secure server-side websockets
+     Default: False
+     Manual: True
+
+library
+  exposed-modules:
+      Pure.Server
+
+  build-depends:
+    base >= 4.8,
+    pure-core >= 0.7 && < 1,
+    pure-default >= 0.7 && < 1,
+    pure-websocket >= 0.7 && < 1
+
+  hs-source-dirs:      src
+  default-language:    Haskell2010
