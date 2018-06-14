@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE CPP, RecordWildCards, OverloadedStrings, LambdaCase #-}
 module Pure.Server where
 
 -- from base
@@ -15,6 +15,9 @@ import Pure.Data.Default
 
 -- from pure-websocket
 import Pure.WebSocket
+
+-- from containers
+import Data.IntMap as IntMap
 
 data Server
   = Server
@@ -37,64 +40,52 @@ data Server
 data ServerState = ServerState
   { ssListener    :: ThreadId
   , ssSocket      :: Socket
-  , ssConnections :: [(Int,WebSocket)]
+  , ssConnections :: IntMap WebSocket
   }
 
 instance Pure Server where
   view =
       ComponentIO $ \self ->
           let
+              updConnections f = modify_ self $ \_ ss -> ss { ssConnections = f (ssConnections ss) }
+
               handleConnections sock = forever $ do
                   (conn,sockAddr) <- accept sock
                   ws <- serverWS conn
                   u <- hashUnique <$> newUnique
-                  onStatus ws $ \status ->
-                    case status of
-                      Closed _ -> void $ setState self $ \_ st ->
-                        return (st { ssConnections = filter ((/= u) . fst) (ssConnections st) }, do
-                            return ()
-                          )
-                      _ -> return ()
-                  void $ setState self $ \_ st ->
-                    return (st { ssConnections = (u,ws) : ssConnections st }, do
-                        return ()
-                      )
+                  onStatus ws $ \case
+                    Closed _ -> updConnections (IntMap.delete u)
+                    _ -> return ()
+                  updConnections (IntMap.insert u ws)
 #ifdef SECURE
               handleSecureConnections ctx sock = forever $ do
                   (conn,sockAddr) <- accept sock
                   ssl <- sslAccept conn
                   ws <- serverWSS conn ssl
                   u <- hashUnique <$> newUnique
-                  onStatus ws $ \status ->
-                    case status of
-                      Closed _ -> void $ setState self $ \_ st ->
-                        return (st { ssConnections = filter ((/= u) . fst) (ssConnections st) }, do
-                            return ()
-                          )
-                      _ -> return ()
-                  void $ setState self $ \_ st ->
-                    return (st { ssConnections = (u,ws) : ssConnections st }, do
-                        return ()
-                      )
+                  onStatus ws $ \case
+                    Closed _ -> updConnections (IntMap.delete u)
+                    _        -> return ()
+                  updConnections (IntMap.insert u ws)
 #endif
           in
               def
                   { construct = do
-                      s <- getProps self
+                      s <- ask self
                       case s of
                         Server {..} -> do
                           sock <- makeListenSocket ip port
-                          tid <- forkIO $ void $ handleConnections sock
-                          return (ServerState tid sock [])
+                          tid <- forkIO $ handleConnections sock
+                          return (ServerState tid sock IntMap.empty)
 #ifdef SECURE
                         SecureServer {..} -> do
                           ctx <- sslSetupServer sslKey sslCert sslChain
                           sock <- makeListenSocket ip port
                           tid <- forkIO $ handleSecureConnections ctx sock
-                          return (ServerState tid sock [])
+                          return (ServerState tid sock IntMap.empty)
 #endif
                   , render = \s ServerState {..} ->
                       Keyed (SimpleHTML "clients") <||#>
-                        (fmap (fmap (connection s)) ssConnections)
+                        (fmap (fmap (connection s)) (IntMap.toAscList ssConnections))
                   }
 #endif
