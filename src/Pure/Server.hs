@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP, RecordWildCards, OverloadedStrings, LambdaCase #-}
-module Pure.Server where
+module Pure.Server (module Pure.Server, module Pure.WebSocket) where
 
 -- from base
 import Control.Concurrent
