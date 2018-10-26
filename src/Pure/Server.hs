@@ -1,5 +1,5 @@
-{-# LANGUAGE CPP, RecordWildCards, OverloadedStrings, LambdaCase #-}
-module Pure.Server (module Pure.Server, module Pure.WebSocket) where
+{-# LANGUAGE CPP, RecordWildCards, OverloadedStrings, LambdaCase, BangPatterns #-}
+module Pure.Server where
 
 -- from base
 import Control.Concurrent
@@ -40,7 +40,7 @@ data Server
 data ServerState = ServerState
   { ssListener    :: ThreadId
   , ssSocket      :: Socket
-  , ssConnections :: IntMap WebSocket
+  , ssConnections :: !(IntMap WebSocket)
   }
 
 instance Pure Server where
