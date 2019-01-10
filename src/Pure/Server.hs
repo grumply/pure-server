@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, RecordWildCards, OverloadedStrings, LambdaCase, BangPatterns #-}
+{-# LANGUAGE CPP, RecordWildCards, OverloadedStrings, LambdaCase, BangPatterns, PatternSynonyms #-}
 module Pure.Server where
 
 -- from base
@@ -20,13 +20,13 @@ import Pure.WebSocket
 import Data.IntMap as IntMap
 
 data Server
-  = Server
+  = Server_
     { ip         :: String
     , port       :: Int
     , connection :: WebSocket -> View
     }
 #ifdef SECURE
-  | SecureServer
+  | SecureServer_
     { ip         :: String
     , port       :: Int
     , sslKey     :: FilePath
@@ -34,9 +34,16 @@ data Server
     , sslChain   :: Maybe FilePath
     , connection :: WebSocket -> View
     }
+
+pattern SecureServer :: String -> Int -> FilePath -> FilePath -> Maybe FilePath -> (WebSocket -> View) -> View
+pattern SecureServer ip port sslKey sslCert sslChain connection = View (SecureServer_ ip port sslKey sslCert sslChain connection)
 #endif
 
 #ifndef __GHCJS__
+
+pattern Server :: String -> Int -> (WebSocket -> View) -> View
+pattern Server ip port connection = View (Server_ ip port connection)
+
 data ServerState = ServerState
   { ssListener    :: ThreadId
   , ssSocket      :: Socket
@@ -73,12 +80,12 @@ instance Pure Server where
                   { construct = do
                       s <- ask self
                       case s of
-                        Server {..} -> do
+                        Server_ {..} -> do
                           sock <- makeListenSocket ip port
                           tid <- forkIO $ handleConnections sock
                           return (ServerState tid sock IntMap.empty)
 #ifdef SECURE
-                        SecureServer {..} -> do
+                        SecureServer_ {..} -> do
                           ctx <- sslSetupServer sslKey sslCert sslChain
                           sock <- makeListenSocket ip port
                           tid <- forkIO $ handleSecureConnections ctx sock
