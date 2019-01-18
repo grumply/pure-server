@@ -1,7 +1,8 @@
-{-# LANGUAGE CPP, RecordWildCards, OverloadedStrings, LambdaCase, BangPatterns, PatternSynonyms #-}
+{-# LANGUAGE CPP, RecordWildCards, OverloadedStrings, LambdaCase, BangPatterns, PatternSynonyms, ScopedTypeVariables #-}
 module Pure.Server where
 
 -- from base
+import Control.Exception
 import Control.Concurrent
 import Control.Monad
 import Data.Unique
@@ -14,7 +15,7 @@ import Pure.Data.View.Patterns
 import Pure.Data.Default
 
 -- from pure-websocket
-import Pure.WebSocket
+import Pure.WebSocket hiding (handle)
 
 -- from containers
 import Data.IntMap as IntMap
@@ -56,7 +57,7 @@ instance Pure Server where
           let
               updConnections f = modify_ self $ \_ ss -> ss { ssConnections = f (ssConnections ss) }
 
-              handleConnections sock = forever $ do
+              handleConnections sock = forever $ handle (\(_ :: SomeException) -> return ()) $ do
                   (conn,sockAddr) <- accept sock
                   ws <- serverWS conn
                   u <- hashUnique <$> newUnique
@@ -65,7 +66,7 @@ instance Pure Server where
                     _ -> return ()
                   updConnections (IntMap.insert u ws)
 #ifdef SECURE
-              handleSecureConnections ctx sock = forever $ do
+              handleSecureConnections ctx sock = forever $ handle (\(_ :: SomeException) -> return ()) $ do
                   (conn,sockAddr) <- accept sock
                   ssl <- sslAccept conn
                   ws <- serverWSS conn ssl
