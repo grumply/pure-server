@@ -59,22 +59,24 @@ instance Pure Server where
 
               handleConnections sock = forever $ handle (\(_ :: SomeException) -> return ()) $ do
                   (conn,sockAddr) <- accept sock
-                  ws <- serverWS conn
-                  u <- hashUnique <$> newUnique
-                  onStatus ws $ \case
-                    Closed _ -> updConnections (IntMap.delete u)
-                    _ -> return ()
-                  updConnections (IntMap.insert u ws)
+                  void $ forkIO $ do
+                    ws <- serverWS conn
+                    u <- hashUnique <$> newUnique
+                    onStatus ws $ \case
+                      Closed _ -> updConnections (IntMap.delete u)
+                      _ -> return ()
+                    updConnections (IntMap.insert u ws)
 #ifdef SECURE
               handleSecureConnections ctx sock = forever $ handle (\(_ :: SomeException) -> return ()) $ do
                   (conn,sockAddr) <- accept sock
-                  ssl <- sslAccept conn
-                  ws <- serverWSS conn ssl
-                  u <- hashUnique <$> newUnique
-                  onStatus ws $ \case
-                    Closed _ -> updConnections (IntMap.delete u)
-                    _        -> return ()
-                  updConnections (IntMap.insert u ws)
+                  void $ forkIO $ do
+                    ssl <- sslAccept conn
+                    ws <- serverWSS conn ssl
+                    u <- hashUnique <$> newUnique
+                    onStatus ws $ \case
+                      Closed _ -> updConnections (IntMap.delete u)
+                      _        -> return ()
+                    updConnections (IntMap.insert u ws)
 #endif
           in
               def
