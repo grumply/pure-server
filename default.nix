@@ -5,7 +5,7 @@
 }:
 mkDerivation {
   pname = "pure-websocket";
-  version = "0.7.0.0";
+  version = "0.8.0.0";
   src = ./.;
   libraryHaskellDepends = [ base containers pure-core pure-default pure-websocket ];
   configureFlags = [ (secure ? "-fsecure") ];
