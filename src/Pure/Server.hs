@@ -53,7 +53,7 @@ data ServerState = ServerState
 
 instance Pure Server where
   view =
-      ComponentIO $ \self ->
+      Component $ \self ->
           let
               updConnections f = modify_ self $ \_ ss -> ss { ssConnections = f (ssConnections ss) }
 
