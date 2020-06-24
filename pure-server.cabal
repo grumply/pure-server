@@ -13,11 +13,6 @@ source-repository head
   type: git
   location: https://github.com/grumply/pure-server.git
 
-Flag secure
-     Description: enable secure server-side websockets
-     Default: False
-     Manual: True
-
 library
   exposed-modules:
       Pure.Server

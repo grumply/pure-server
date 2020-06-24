@@ -26,7 +26,6 @@ data Server
     , port       :: Int
     , connection :: WebSocket -> View
     }
-#ifdef SECURE
   | SecureServer_
     { ip         :: String
     , port       :: Int
@@ -36,11 +35,10 @@ data Server
     , connection :: WebSocket -> View
     }
 
-pattern SecureServer :: String -> Int -> FilePath -> FilePath -> Maybe FilePath -> (WebSocket -> View) -> View
-pattern SecureServer ip port sslKey sslCert sslChain connection = View (SecureServer_ ip port sslKey sslCert sslChain connection)
-#endif
 
 #ifndef __GHCJS__
+pattern SecureServer :: String -> Int -> FilePath -> FilePath -> Maybe FilePath -> (WebSocket -> View) -> View
+pattern SecureServer ip port sslKey sslCert sslChain connection = View (SecureServer_ ip port sslKey sslCert sslChain connection)
 
 pattern Server :: String -> Int -> (WebSocket -> View) -> View
 pattern Server ip port connection = View (Server_ ip port connection)
@@ -66,7 +64,6 @@ instance Pure Server where
                       Closed _ -> updConnections (IntMap.delete u)
                       _ -> return ()
                     updConnections (IntMap.insert u ws)
-#ifdef SECURE
               handleSecureConnections ctx sock = forever $ handle (\(_ :: SomeException) -> return ()) $ do
                   (conn,sockAddr) <- accept sock
                   void $ forkIO $ do
@@ -77,7 +74,6 @@ instance Pure Server where
                       Closed _ -> updConnections (IntMap.delete u)
                       _        -> return ()
                     updConnections (IntMap.insert u ws)
-#endif
           in
               def
                   { construct = do
@@ -87,13 +83,11 @@ instance Pure Server where
                           sock <- makeListenSocket ip port
                           tid <- forkIO $ handleConnections sock
                           return (ServerState tid sock IntMap.empty)
-#ifdef SECURE
                         SecureServer_ {..} -> do
                           ctx <- sslSetupServer sslKey sslCert sslChain
                           sock <- makeListenSocket ip port
                           tid <- forkIO $ handleSecureConnections ctx sock
                           return (ServerState tid sock IntMap.empty)
-#endif
                   , render = \s ServerState {..} ->
                       Keyed (SimpleHTML "clients") <||#>
                         (fmap (fmap (connection s)) (IntMap.toAscList ssConnections))
